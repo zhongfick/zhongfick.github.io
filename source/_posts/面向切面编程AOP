@@ -1,0 +1,42 @@
+---
+title: 面向切面编程
+date: 2025-1-12 14:04:12
+---
+第一步：声明注解
+用 @interface 定义，并加上必要的“元注解”（用来修饰注解的注解）。
+@Target：指定这个注解能贴在哪儿（比如方法上、类上、参数上）。
+@Retention：指定注解的生命周期。关键点：必须设为 RetentionPolicy.RUNTIME，因为 Spring 在运行时需要用反射读取它，不设这个就白写了。
+java
+@Target(ElementType.METHOD) // 只能用在方法上
+@Retention(RetentionPolicy.RUNTIME) // 运行时生效（面试必说）
+public @interface MyLog {
+    String value() default ""; // 注解可以带属性
+}
+
+第二步：写切面（Aspect）处理逻辑
+创建一个类，用 @Aspect 标记，然后通过 @annotation 切点指向你刚才定义的注解。这样，凡是被 @MyLog 标记的方法，都会走到这里的逻辑。
+java
+@Aspect
+@Component
+public class MyLogAspect {
+    @Around("@annotation(myLog)") // 拦截标了 @MyLog 的方法
+    public Object around(ProceedingJoinPoint joinPoint, MyLog myLog) throws Throwable {
+        System.out.println("方法执行前，注解的值是：" + myLog.value());
+        Object result = joinPoint.proceed(); // 执行原方法
+        System.out.println("方法执行后");
+        return result;
+    }
+}
+第三步：在业务代码里使用
+在 Controller 或 Service 的方法上贴标签。
+java
+@RestController
+public class TestController {
+    @MyLog("用户查询") // 触发切面逻辑
+    @GetMapping("/user")
+    public String getUser() {
+        return "ok";
+    }
+}
+
+AOP 完整的链条是：Spring AOP → 动态代理（JDK 或 CGLIB）→ JDK 代理走反射调用，CGLIB 走字节码子类调用
